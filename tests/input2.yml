@@ -1,0 +1,21 @@
+version: '3.5'
+
+networks:
+  web:
+  db: nil
+
+services:
+  php:
+    build:
+      context: docker/php_prod
+      args:
+        - FINAL_BASE=nil
+        - NEW_ARG=1
+    networks:
+      - web:nil
+      - db
+    volumes:
+      - .:/mnt/app_prod
+    environment:
+      XDEBUG_ENABLE: false
+      DEBUG: false

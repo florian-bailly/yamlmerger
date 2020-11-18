@@ -9,19 +9,21 @@ import (
 	"clickandboat.com/simpleyaml"
 )
 
-// TODO: set optional flags for "i", "dpl", "o", "c"
-// TODO: set usage like in https://github.com/golang/lint/blob/master/golint/golint.go
-
 var (
 	inputFlag         = flag.String("i", "", "Input YAML files. e.g: \"file1.yaml file2.yaml [...]\"")
-	outputFlag        = flag.String("o", "none", "Output YAML file")
-	checkFlag         = flag.Bool("c", false, "Checks if the merge passes (without writing to a file)")
-	deletionTokenFlag = flag.String("del-tk", "nil", "Deletion token to identify which node(s) to delete")
-	delimPerListFlag  = flag.String("dpl", "none", "Delimiter per list to identify key and value. e.g: \"keyname1:delim1,keyname2:delim2[,...]\"")
+	outputFlag        = flag.String("o", "", "[optional] Output YAML file")
+	deletionTokenFlag = flag.String("del-tk", "", "[optional] Deletion token to identify which node(s) to delete")
+	delimPerListFlag  = flag.String("dpl", "", "[optional] Delimiter per list to identify key and value. e.g: \"keyname1:delim1,keyname2:delim2[,...]\"")
+	outForceFlag      = flag.Bool("of", false, "[optional] Overwrite output file if exists")
 )
 
 func main() {
 	flag.Parse()
+
+	if *inputFlag == "" {
+		flag.Usage()
+		os.Exit(2)
+	}
 
 	var inputFiles []*os.File
 	processInputFlag(&inputFiles)
@@ -29,20 +31,10 @@ func main() {
 		defer inputFiles[i].Close()
 	}
 
-	outputFilePath := strings.TrimSpace(*outputFlag)
-
-	_, statErr := os.Stat(outputFilePath)
-	if !os.IsNotExist(statErr) {
-		fmt.Println("Output file already exists!")
-		os.Exit(1)
-	}
-
 	deletionToken := strings.TrimSpace(*deletionTokenFlag)
 
 	delimiterPerList := strings.TrimSpace(*delimPerListFlag)
-	if delimiterPerList == "none" {
-		delimiterPerList = ""
-	}
+	delimPerListMap := simpleyaml.RawDelimPerListToMap(delimiterPerList)
 
 	var yamls []*simpleyaml.YamlNode
 
@@ -52,7 +44,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	merger := simpleyaml.NewMerger(yamls, deletionToken, delimiterPerList, true)
+	merger := simpleyaml.NewMerger(yamls, deletionToken, delimPerListMap, true)
 
 	mergedYaml, mergeErr := merger.Merge()
 	if mergeErr != nil {
@@ -60,10 +52,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *checkFlag {
-		fmt.Println("Merge successful.")
-		//os.Exit(0)
-		return
+	if *outputFlag != "" {
+		writeMergedFile(mergedYaml)
+	}
+
+	fmt.Println("Merge successful.")
+}
+
+func writeMergedFile(mergedYaml *simpleyaml.YamlNode) {
+	outputFilePath := strings.TrimSpace(*outputFlag)
+
+	if !*outForceFlag {
+		_, statErr := os.Stat(outputFilePath)
+		if !os.IsNotExist(statErr) {
+			fmt.Println("Output file already exists!")
+			os.Exit(1)
+		}
 	}
 
 	outputFile, createErr := os.Create(outputFilePath)
@@ -75,12 +79,15 @@ func main() {
 
 	writer := simpleyaml.NewWriter(outputFile)
 	writer.Write(mergedYaml)
-
-	fmt.Println("Merge successful.")
 }
 
 func processInputFlag(inputFiles *[]*os.File) {
 	inputFilesPaths := strings.Split(*inputFlag, " ")
+
+	if len(inputFilesPaths) < 2 {
+		fmt.Println("You must specify at least 2 input files")
+		os.Exit(2)
+	}
 
 	c := len(inputFilesPaths)
 	*inputFiles = make([]*os.File, c)

@@ -37,7 +37,6 @@ func TraverseNext(node *YamlNode, rewindDepth *uint) *YamlNode {
 
 	for {
 		nextChild = TraverseNextChild(nodeNext)
-		// fmt.Println("[TraverseNext] nextChild:", nextChild)
 		if nextChild != nil {
 			break
 		}
@@ -63,19 +62,9 @@ func TraverseNextChild(node *YamlNode) *YamlNode {
 
 	var nextChild *YamlNode
 	c := len(node.parent.children)
-	// fmt.Println("[TraverseNextChild] node:", node.name)
-	// fmt.Println("[TraverseNextChild] parent children len:", c)
+
 	for i := 0; i < c; i++ {
-		// fmt.Print("[TraverseNextChild] child[", i, "] vs node: ")
-
-		// fmt.Print(node.parent.children[i].name + ": ")
-		// print(&node.parent.children[i])
-
-		// fmt.Print(" " + node.name + ": ")
-		// println(node)
-
 		if node.parent.children[i] == node {
-			// fmt.Println("[TraverseNextChild] match!")
 			if i == c-1 {
 				// No next child
 				break

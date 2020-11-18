@@ -1,0 +1,22 @@
+version: '3.5'
+
+networks:
+  web:
+  db:
+
+services:
+  php:
+    build:
+      context: docker/php
+      args:
+        - FINAL_BASE=dev
+        - USER_ID=${USER_ID:-1000}
+    networks:
+      - web
+      - db
+    volumes:
+      - .:/mnt/app
+      - ./storage/logs/php:/mnt/log
+    environment:
+      XDEBUG_ENABLE: true
+      OPCACHE_ENABLE: ${OPCACHE_ENABLE}

@@ -5,8 +5,6 @@ import (
 	"strings"
 )
 
-// TODO: make a directory for this file
-
 // Tokens of raw "Delimiter Per List" format
 const (
 	tkRawDelimPerListPostKey   = ':'
@@ -26,7 +24,7 @@ func (ym *YamlMerger) mergeNodesList(node *YamlNode, node2 *YamlNode) error {
 	if isDelimited {
 		mlistMerged, err = mergeNodesListDelimited(node, node2, delim, &mlist, ym.delTk)
 	} else {
-		mlistMerged = mergeNodesListBasic(node, node2, &mlist)
+		mlistMerged = mergeNodesListBasic(node, node2, &mlist, ym.delTk)
 	}
 
 	node.values = mappedListToList(mlistMerged, delim)
@@ -71,10 +69,12 @@ func mergeNodesListDelimited(
 // mergeNodesListBasic returns a map corresponding to the merge of the lists
 // for the given two nodes.
 // baseMappedList Mapped list to use as a base for the merge
+// delTk          Deletion token
 func mergeNodesListBasic(
 	node *YamlNode,
 	node2 *YamlNode,
 	baseMappedList *map[string]string,
+	delTk string,
 ) map[string]string {
 	var mlist map[string]string
 
@@ -86,7 +86,7 @@ func mergeNodesListBasic(
 
 	mlist2 := listToMappedList(node2.values)
 
-	return mergeMappedListsBasic(mlist, mlist2)
+	return mergeMappedListsBasic(mlist, mlist2, delTk)
 }
 
 // mergeMappedListsDelimited returns a map corresponding to the merge of the lists
@@ -115,13 +115,23 @@ func mergeMappedListsDelimited(
 
 // mergeMappedListsBasic returns a map corresponding to the merge of the lists
 // for the given two mapped lists.
+// delTk Deletion token. If the value ends with a colon followed by your token
+//                       then it will be deleted.
 func mergeMappedListsBasic(
 	mlist map[string]string,
 	mlist2 map[string]string,
+	delTk string,
 ) map[string]string {
 	mlistMerged := mlist
+	tkLen := len(delTk)
 
 	for v2 := range mlist2 {
+		v2Len := len(v2)
+		if delTk != "" && (v2Len > tkLen+1 && v2[v2Len-(tkLen+1):] == ":"+delTk) {
+			delete(mlistMerged, v2[0:v2Len-(tkLen+1)])
+			continue
+		}
+
 		mlistMerged[v2] = ""
 	}
 
@@ -173,8 +183,9 @@ func mappedListToList(mlist map[string]string, delim string) []string {
 	return list
 }
 
-// rawDelimPerListToMap returns the map of the given raw "Delimiter Per List" format.
-func rawDelimPerListToMap(str string) map[string]string {
+// RawDelimPerListToMap returns the map of the given raw "Delimiter Per List" format.
+// Raw format: listName1:delim1,listName2:delim2[,...]
+func RawDelimPerListToMap(str string) map[string]string {
 	dplMap := make(map[string]string)
 
 	if str == "" {
